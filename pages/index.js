@@ -1,35 +1,7 @@
 import appConfig from '../config.json';
+import React from 'react';
+import { useRouter } from 'next/router';
 import { Box, Button, Text, TextField, Image } from '@skynexui/components';
-
-//Style reset
-function GlobalStyle() {
-    return (
-        <style global jsx>{`
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        list-style: none;
-      }
-      body {
-        font-family: 'Open Sans', sans-serif;
-      }
-      /* App fit Height */ 
-      html, body, #__next {
-        min-height: 100vh;
-        display: flex;
-        flex: 1;
-      }
-      #__next {
-        flex: 1;
-      }
-      #__next > * {
-        flex: 1;
-      }
-      /* ./App fit Height */ 
-    `}</style>
-    );
-}
 
 //Usartag vazia <> </> para agrupar
 //As aspas servem para utilizar as props js em css
@@ -63,11 +35,22 @@ function Titulo(props) {
 //export default HomePage
 
 export default function PaginaInicial() {
-    const username = 'StephaniHenrique';
+    // const username = 'StephaniHenrique';
+    const [username, setUsername] = React.useState('StephaniHenrique');
+    const [buttonDisabled, setButtonDisabled] = React.useState(false);
+    const [imageVisible, setImageVisible] = React.useState(true);
+    const roteamento = useRouter();
+
+    const src = `https://api.github.com/users/${username}`;
+
+    fetch(src)
+        .then((res) => res.json())
+        .then((res) => (res.id != undefined) ? setImageVisible(true) : setImageVisible(false))
+        .catch((erro) => console.log(erro));
+
 
     return (
         <>
-            <GlobalStyle />
             <Box
                 styleSheet={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -94,6 +77,10 @@ export default function PaginaInicial() {
                     {/* Formulário */}
                     <Box
                         as="form"
+                        onSubmit={function (event) {
+                            event.preventDefault();
+                            roteamento.push('/chat');
+                        }}
                         styleSheet={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                             width: { xs: '100%', sm: '50%' }, textAlign: 'center', marginBottom: '32px',
@@ -114,10 +101,21 @@ export default function PaginaInicial() {
                                     backgroundColor: appConfig.theme.colors.neutrals[800],
                                 },
                             }}
+                            value={username}
+                            onChange={function (event) {
+                                //Onde esta o novo valor
+                                const valor = event.target.value;
+                                // Att o valor através do react
+                                setUsername(valor);
+
+                                setButtonDisabled((valor.length <= 2));
+                                (valor.length <= 2) ? setImageVisible(false) : setImageVisible(true);
+                            }}
                         />
                         <Button
                             type='submit'
                             label='Entrar'
+                            disabled={buttonDisabled}
                             fullWidth
                             buttonColors={{
                                 contrastColor: appConfig.theme.colors.neutrals["000"],
@@ -150,9 +148,14 @@ export default function PaginaInicial() {
                             styleSheet={{
                                 borderRadius: '50%',
                                 marginBottom: '16px',
+                                maxWidth: '166px',
+                                height: '166px',
+                                objectFit: 'cover',
                             }}
-                            src={`https://github.com/${username}.png`}
+
+                            src={imageVisible ? `https://github.com/${username}.png` : `https://www.gamespew.com/wp-content/uploads/2018/07/Detroit-Become-Human-Chloe-min.jpg`}
                         />
+
                         <Text
                             variant="body4"
                             styleSheet={{
@@ -162,7 +165,7 @@ export default function PaginaInicial() {
                                 borderRadius: '1000px'
                             }}
                         >
-                            {username}
+                            {imageVisible ? username : 'verifique o username'}
                         </Text>
                     </Box>
                     {/* Photo Area */}
