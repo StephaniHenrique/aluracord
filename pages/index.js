@@ -43,8 +43,13 @@ export default function PaginaInicial() {
 
     const src = `https://api.github.com/users/${username}`;
 
+    //Fetch é uma requisição que retorna uma promessa -> uma tentativa de chamada dessa url
+    //Then, quando fetch conseguir realizar a requisição, realizamos uma função arrow que recebe como parametro o retorno da url
+
     fetch(src)
-        .then((res) => res.json())
+        .then(async (res) => {
+            const resposta = await res.json()
+        }) //A conversão para JSON também é uma promessa, pois temos que unir todos os pedacinhos que o servidor recebe. Por isso usar await e async
         .then((res) => (res.id != undefined) ? setImageVisible(true) : setImageVisible(false))
         .catch((erro) => console.log(erro));
 
@@ -74,12 +79,13 @@ export default function PaginaInicial() {
                         backgroundColor: appConfig.theme.colors.neutrals[700],
                     }}
                 >
+                    {/* `` == template string -> para colocar variaveis js*/}
                     {/* Formulário */}
                     <Box
                         as="form"
                         onSubmit={function (event) {
                             event.preventDefault();
-                            roteamento.push('/chat');
+                            roteamento.push(`/chat?username=${username}`);
                         }}
                         styleSheet={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',

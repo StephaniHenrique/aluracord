@@ -1,24 +1,86 @@
 import { Box, Text, TextField, Image, Button } from '@skynexui/components';
 import React from 'react';
 import appConfig from '../config.json';
+import { useRouter } from 'next/router';
+import { createClient } from '@supabase/supabase-js';
+import { ButtonSendSticker } from '../src/components/ButtonSendSticker';
+
+//Sem usar a lib do supabase, fariamos a seguinte request
+/* fetch('${SUPABASE_URL}/rest/v1/tbMessage?select=*', {
+    headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    }
+}) 
+    .then((res) => {
+        return res.json();
+    })
+    .then((response) => {
+        console.log(response);
+    });
+*/
+
+
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzMwNTQ3OSwiZXhwIjoxOTU4ODgxNDc5fQ.NK4NIfaNFm1wN3Srsx3HIoA3VWsk6u-RiuQWIW4Oe1c';
+const SUPABASE_URL = 'https://mkslgggiznhmrbljnpxb.supabase.co';
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function getMessage(adicionaMsg) { //Só é chamado uma vez, por que vai criar uma function trigger no banco que executa toda vez que ouver um insert na tbMessage
+    return supabaseClient
+        .from('tbMessage')
+        .on('INSERT', (response) => {
+            adicionaMsg(response.new);
+        })
+        .subscribe();
+} //É necessário ativar real time no supabase
 
 export default function ChatPage() {
+    const roteamento = useRouter();
+    const userLogado = roteamento.query.username;
     const [mensagem, setMensagem] = React.useState('');
     const [chatMsg, setChatMsg] = React.useState([]);
+
+    //Por padrão, o useEffect acontece toda vez que a página carrega
+    React.useEffect(() => {
+        //Semelhante a promessa, esta puxando dados e não esta pronto, entõa não iremos armazenar em uma var
+        supabaseClient
+            .from('tbMessage')
+            .select('*')
+            .order('id', { ascending: false })
+            .then(({ data }) => { //Ao invés de pegar toda a response da request, podemos filtrar com {}
+                setChatMsg(data);
+            });
+
+        getMessage((novaMensagem) => {
+            //... significa percorrer os elementos do array (se não estariamos criando um array dentro do outro)
+            // Importante lembrar dos [], pois neste caso estamos trabalhando com arrays
+            setChatMsg((valorAtualDaLista) => {
+                return [
+                    novaMensagem, //Formando um array de objetos
+                    ...valorAtualDaLista //As novas mensagens devem ser as mais recentes no chat e portanto as primeiras a serem acessadas no array
+                ]
+            });
+        });
+    }, []) //Os [] são novos parâmetros para acionar o useEffect, vai rodar toda vez que a variavel [var] for alterada
 
     function handleNovaMsg(novaMensagem) {
         //Objeto -> não mais string
         const mensagem = {
-            id: chatMsg.length,
-            from: 'StephaniHenrique',
-            texto: novaMensagem,
+            //id: chatMsg.length,
+            name: userLogado,
+            text: novaMensagem,
         }
-        //... significa percorrer os elementos do array (se não estariamos criando um array dentro do outro)
-        // Importante lembrar dos [], pois neste caso estamos trabalhando com arrays
-        setChatMsg([
-            mensagem, //Formando um array de objetos
-            ...chatMsg //As novas mensagens devem ser as mais recentes no chat e portanto as primeiras a serem acessadas no array
-        ])
+
+        supabaseClient
+            .from('tbMessage')
+            .insert([
+                mensagem
+            ])
+            .then(({ data }) => {
+
+            })
+
         setMensagem('');
     }
 
@@ -27,7 +89,7 @@ export default function ChatPage() {
             styleSheet={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 backgroundColor: appConfig.theme.colors.primary[500],
-                backgroundImage: `url(https://virtualbackgrounds.site/wp-content/uploads/2020/08/the-matrix-digital-rain.jpg)`,
+                backgroundImage: 'url(https://funfactorpt.files.wordpress.com/2018/12/markus-detroit-become-human-2018-5g-1.jpg?w=1920&h=1080&crop=1)',
                 backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundBlendMode: 'multiply',
                 color: appConfig.theme.colors.neutrals['000']
             }}
@@ -99,6 +161,11 @@ export default function ChatPage() {
                                 color: appConfig.theme.colors.neutrals[200],
                             }}
                         />
+                        {/*Callback -> chamada de retorno. Quando algo que você queria finalizou e retorna para realizar determinada função*/}
+                        <ButtonSendSticker  //Enviando uma função que pode ser executada no componente
+                            onStickerClick={(sticker) => {
+                                handleNovaMsg(`:sticker:${sticker}`); // ou (':sticker:' + sticker)
+                            }} />
                     </Box>
                 </Box>
             </Box>
@@ -165,10 +232,10 @@ function MessageList(props) {
                                     display: 'inline-block',
                                     marginRight: '8px',
                                 }}
-                                src={`https://github.com/${mensagemAtual.from}.png`}
+                                src={`https://github.com/${mensagemAtual.name}.png`}
                             />
                             <Text tag="strong">
-                                {mensagemAtual.from}
+                                {mensagemAtual.name}
                             </Text>
                             <Text
                                 styleSheet={{
@@ -181,7 +248,13 @@ function MessageList(props) {
                                 {(new Date().toLocaleDateString())}
                             </Text>
                         </Box>
-                        {mensagemAtual.texto}
+                        {mensagemAtual.text.startsWith(':sticker:') ?
+                            (
+                                <Image src={mensagemAtual.text.replace(':sticker:', '')} />
+                            ) :
+                            (
+                                mensagemAtual.text
+                            )}
                     </Text>
                 );
             })}
